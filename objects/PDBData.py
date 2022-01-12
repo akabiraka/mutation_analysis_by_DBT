@@ -128,15 +128,15 @@ class PDBData(object):
         print("Generating fasta {}:{}, Seq-len:{} ... ..".format(pdb_id, chain_id, len(seq)))
         return seq, len(seq)
     
-    def create_mutant_fasta_file(self, wild_fasta_file, mutant_fasta_file, mutation_site, wild_residue, mutation=None):
+    def create_mutant_fasta_file(self, wild_fasta_file, mutant_fasta_file, zero_based_mutation_site, mutant_residue, mutation=None):
         pdbid = wild_fasta_file.split("/")[2].split(".")[0]
-        wild_residue = Polypeptide.three_to_one(wild_residue) if len(wild_residue)==3 else wild_residue
+        mutant_residue = Polypeptide.three_to_one(mutant_residue) if len(mutant_residue)==3 else mutant_residue
         with open(wild_fasta_file, "r") as wild_fasta_reader:
             lines = wild_fasta_reader.readlines()
             # print(lines)
             with open(mutant_fasta_file, 'w') as mutant_fasta_writer:
-                # print(lines[1][mutation_site])# = wild_residue
-                fasta = lines[1][:mutation_site] + wild_residue + lines[1][mutation_site+1:]
+                # print(lines[1][mutation_site])# = mutant_residue
+                fasta = lines[1][:zero_based_mutation_site] + mutant_residue + lines[1][zero_based_mutation_site+1:]
                 mutant_fasta_writer.write(lines[0].rstrip()+":{}\n".format(mutation))
                 mutant_fasta_writer.write(fasta)
     
