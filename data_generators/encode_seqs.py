@@ -9,32 +9,44 @@ from Bio import SeqIO
 # configurations
 pdbs_clean_dir = "data/pdbs_clean/"
 fastas_dir = "data/fastas/"
-cut_sub_seq_len = 15
+encoded_dir = "data/encoded/"
 
-input_file_path = "data/dataset_5_train.csv"
-# input_file_path = "data/dataset_5_test.csv"
+# inp_file = "data/dataset_5_train.csv"
+# out_file = "data/datasets/train.csv"
+# inp_file = "data/dataset_5_val.csv"
+# out_file = "data/datasets/val.csv"
+inp_file = "data/dataset_5_test.csv"
+out_file = "data/datasets/test.csv"
+
+cut_sub_seq_len = 15
 n_rows_to_skip = 0
-n_rows_to_evalutate = 10#0000
+n_rows_to_evalutate = 100000
 
 # object initialization
 mutation_utils = MutationUtils()
 seq_encode_helper = SeqEcodeHelper()
 
-df = pd.read_csv(input_file_path)
+df = pd.read_csv(inp_file)
+out_df = pd.DataFrame(columns=["wild", "mutant", "ddg", "label"])
 
 for i, row in df.iterrows():
     if i+1 <= n_rows_to_skip: continue
     
     # extracting the data
     pdb_id, chain_id, mutation, mutation_site, wild_residue, mutant_residue, ddg = mutation_utils.get_row_items(row)
+    label = "stabilizing" if ddg>=0 else "destabilizing"
 
     # creating necessary file paths
-    cln_pdb_file = pdbs_clean_dir+pdb_id+chain_id+".pdb"
-    wild_fasta_file = fastas_dir+pdb_id+chain_id+".fasta"
-    mutant_fasta_file = fastas_dir+pdb_id+chain_id+"_"+mutation+".fasta"
+    wild_id, mutant_id = pdb_id+chain_id, pdb_id+chain_id+"_"+mutation
+    cln_pdb_file = pdbs_clean_dir+wild_id+".pdb"
+    wild_fasta_file = fastas_dir+wild_id+".fasta"
+    mutant_fasta_file = fastas_dir+mutant_id+".fasta"
+    wild_enc_file = encoded_dir+wild_id+".pkl"
+    mutant_enc_file = encoded_dir+mutant_id+".pkl"
 
     # getting 0-based mutation site
     zero_based_mutation_site = mutation_utils.get_zero_based_mutation_site(cln_pdb_file, chain_id, mutation_site)
+    print("Row no:{}->{}{}, mutation:{}, 0-based_mutaiton_site:{}".format(i+1, pdb_id, chain_id, mutation, zero_based_mutation_site))
 
     # getting wild and mutant seq
     wild_seq = next(SeqIO.parse(wild_fasta_file, "fasta")).seq
@@ -47,11 +59,19 @@ for i, row in df.iterrows():
     # print(wild_seq)
     # print(mutant_seq)
 
-    # encoding mutation region by blosum50
+    # encoding and saving mutation region by blosum50
     wild_enc = seq_encode_helper.seq_to_blosum(wild_sub_seq)
     mutant_enc = seq_encode_helper.seq_to_blosum(mutant_sub_seq)
-    print(wild_enc.shape, mutant_enc.shape)
-    
+    mutation_utils.save_as_pickle(wild_enc, wild_enc_file)
+    mutation_utils.save_as_pickle(mutant_enc, mutant_enc_file)
+    print(mutation_utils.load_pickle(wild_enc_file).dtype, mutation_utils.load_pickle(mutant_enc_file).dtype)
+    print(mutation_utils.load_pickle(wild_enc_file).shape, mutation_utils.load_pickle(mutant_enc_file).shape)
+    # print(wild_enc.shape, mutant_enc.shape)
+
+    out_df.loc[i] = [wild_id, mutant_id, ddg, label]
+
     print()
     if i+1 == n_rows_to_skip+n_rows_to_evalutate: 
         break
+
+out_df.to_csv(out_file, index=False)
